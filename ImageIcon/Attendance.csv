@@ -1,0 +1,5 @@
+,id,name,department,position,date,timecheckin,dayofweek,timecheckout,minuteslate,worknumber
+1,290307481,Le Khac Chau,Customer care,Staff,2022-11-28,0 days 20:15:40,Monday,0 days 23:18:33,735,0.0
+2,690428694,Le Khac Chau,Customer care,Staff,2022-11-30,0 days 00:28:59,Wednesday,0 days 18:36:28,10,1.0
+3,766778916,Viet ,Marketing,Staff,2022-11-30,0 days 19:29:23,Wednesday,0 days 00:00:00,689,0.0
+4,799054491,Le Huu Trung,HR,Staff,2022-11-28,0 days 21:25:45,Monday,0 days 23:19:24,805,0.0
