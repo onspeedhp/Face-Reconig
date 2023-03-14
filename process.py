@@ -11,16 +11,17 @@ from PIL import Image, ImageTk
 from datetime import datetime
 import db_user as db_user
 import db_attendance as db_attendance
-path = "/home/katherinee/Desktop/Job/Web_Reconig/"
+import streamlit as st
+import unidecode
+path = "C:/Users/chauk/OneDrive/Tài liệu/Code/Outsource/Python/Attendence/"
 
 
-def TakeImages(path, Id, name, department, position, username, password, email, phone, address, city):
+def TakeImages(path, student):
     cam = cv2.VideoCapture(0)
     harcascadePath = "haarcascade_frontalface_default.xml"
     detector = cv2.CascadeClassifier(harcascadePath)
     sampleNum = 0
     while (True):
-        print("Run")
         ret, img = cam.read()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = detector.detectMultiScale(gray, 1.3, 5)
@@ -30,7 +31,8 @@ def TakeImages(path, Id, name, department, position, username, password, email, 
             sampleNum = sampleNum+1
             # saving the captured face in the dataset folder TrainingImage
             os.chdir(path + "TrainingImage")
-            cv2.imwrite(f"{str(Id)}_{str(sampleNum)}.jpg", img[y:y+h, x:x+w])
+            cv2.imwrite(f"{str(student.id)}_{str(sampleNum)}.jpg",
+                        img[y:y+h, x:x+w])
             # display the frame
             cv2.imshow('frame', img)
         # wait for 100 miliseconds
@@ -42,8 +44,7 @@ def TakeImages(path, Id, name, department, position, username, password, email, 
     cam.release()
     cv2.destroyAllWindows()
     TrainImages()
-    db_user.insert_user_info(
-        Id, name, department, position, username, password, email, phone, address, city)
+    db_user.insert_user_info(student)
 
 
 def TrainImages():
@@ -67,7 +68,6 @@ def getImagesAndLabels(path):
     Ids = []
     # now looping through all the image paths and loading the Ids and the images
     for imagePath in imagePaths:
-        print(imagePath)
         # loading the image and converting it to gray scale
         pilImage = Image.open(imagePath).convert('L')
         # Now we are converting the PIL image into numpy array
@@ -80,22 +80,25 @@ def getImagesAndLabels(path):
     return faces, Ids
 
 
-def Attendence():
+def Attendence(choose_class, choose_dayofweek, choose_time, choose_time_end):
     win = Tk()
-    Id_attendance = 0
-    change_or_inset = None
+    tt = ""
+    minuteslate = 0
+    check_attendance = None
+    reason = ''
+    Id_attendance = np.random.randint(100000000, 999999999)
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read(f"{path}TrainingImageLabel/Trainner.yml")
     harcascadePath = "haarcascade_frontalface_default.xml"
     faceCascade = cv2.CascadeClassifier(harcascadePath)
     df = db_user.get_all_user()
-    # col_names =  ['id', 'name', 'department', 'position', 'username', 'password', 'email',
+    # col_names =  ['id', 'name', 'major', 'faculty', 'user_role', 'username', 'password', 'email',
     #   'phone', 'address', 'city']
     df = pd.DataFrame(df)
     cam = cv2.VideoCapture(0)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    col_names = ['id', 'name', 'department', 'position', 'date',
-                 'timecheckin', 'dayofweek', "timecheckout", "minuteslate", "worknumber"]
+    col_names = ['id', 'name', 'class_name', 'major', 'faculty',
+                 'user_role', 'date', 'dayofwwek', 'minuteslate', "reason"]
     attendance = pd.DataFrame(columns=col_names)
     while True:
         ret, im = cam.read()
@@ -107,47 +110,45 @@ def Attendence():
         for (x, y, w, h) in faces:
             cv2.rectangle(im, (x, y), (x+w, y+h), (225, 0, 0), 2)
             Id, conf = recognizer.predict(gray[y:y+h, x:x+w])
+            print(Id)
             if (conf < 50):
-                user_info = db_user.get_user_info(Id)
-                tt = user_info["name"] + "-" + user_info["position"]
+                user_info = db_user.get_user_by_id(Id)
+                if user_info:
 
-                
-                today = datetime.today()
-                date = today.strftime('%Y-%m-%d')
-                dayofweek = today.strftime('%A')
-                minuteslate = 10
-                worknumber = 1
-                check_attendance = db_attendance.check_attendance(
-                    date, user_info["name"])
-                if check_attendance == None:
-                    change_or_inset = "insert"
-                    Id_attendance = np.random.randint(100000000, 999999999)
-                    timecheckin = today.strftime('%H:%M:%S')
-                    timecheckout = ""
-                    Hour, Minute, Second = timecheckin.split(":")
-                    if Hour >= '08' and Minute >= '00' and Second >= '00':
-                        minuteslate = (int(Hour) - 8) * 60 + int(Minute)
-                        if minuteslate > 120:
-                            worknumber = 0
-                        elif minuteslate > 60:
-                            worknumber = 0.5
+                    tt = user_info["name"] + "-" + user_info["user_role"]
+                    unidecode.unidecode(user_info["user_role"])
 
-                else:
-                    Id_attendance = check_attendance['id']
-                    
-                    timecheckout = today.strftime('%H:%M:%S')
-                    timecheckin = check_attendance["timecheckin"]
-                    timecheckin = str(timecheckin)
-                    Hour, Minute, Second = timecheckout.split(":")
-                    Hour_1, Minute_1, Second_1 = timecheckin.split(":")
-                    if (int(Hour_1) == int(Hour)):
-                        if  (int(Minute) - int(Minute_1)) >= 10:
-                            change_or_inset = "update"
-                    elif (int(Hour) > int(Hour_1)):
-                        change_or_inset = "update"
+                    today = datetime.today()
+                    date = today.strftime('%Y-%m-%d')
+                    hour = today.strftime('%H:%M:%S')
 
-                attendance.loc[len(attendance)] = [Id_attendance, user_info["name"], user_info["department"],
-                                                   user_info["position"], date, timecheckin, dayofweek, timecheckout, minuteslate, worknumber]
+                    minute = int(hour[3:5])
+                    hour = int(hour[0:2])
+
+                    # convert choose_time and choose_time_end to int to compare
+                    choose_time_hour = int(choose_time[0:2])
+                    choose_time_minute = int(choose_time[3:5])
+                    choose_time_end_hour = int(choose_time_end[0:2])
+
+                    check_attendance = db_attendance.check_user_attendance(
+                        date, user_info["name"], choose_class, choose_dayofweek)
+
+                    if check_attendance == False:
+                        if hour == choose_time_hour:
+                            if (minute - choose_time_minute) <= 15:
+                                minuteslate = 0
+                            else:
+                                minuteslate = minute - choose_time_minute
+                        elif hour > choose_time_hour and hour <= choose_time_end_hour:
+                            minuteslate = (choose_time_hour - hour)*60 + minute
+
+                        elif hour > choose_time_end_hour:
+                            minuteslate = 100000
+                            reason = "Muộn"
+
+                        attendance.loc[len(attendance)] = [Id_attendance, user_info["name"], choose_class, user_info["major"],
+                                                           user_info["faculty"], user_info["user_role"], date, choose_dayofweek, minuteslate, reason]
+
             else:
                 Id = 'Unknown'
                 tt = str(Id)
@@ -163,11 +164,14 @@ def Attendence():
 
     cam.release()
     cv2.destroyAllWindows()
-    attendance = attendance.to_dict('records')
-    attendance = attendance[-1]
-    if change_or_inset == "insert":
-        db_attendance.insert_user_attendance(attendance["id"], attendance["name"], attendance["department"], attendance["position"], attendance["date"],
-                                        attendance["timecheckin"], attendance["dayofweek"], attendance["timecheckout"], attendance["minuteslate"], attendance["worknumber"])
-    elif change_or_inset == "update":
-        db_attendance.update_attendance(int(attendance["id"]), attendance["name"], attendance["department"], attendance["position"], str(attendance["date"]),
-                                        str(attendance["timecheckin"]), attendance["dayofweek"], str(attendance["timecheckout"]), attendance["minuteslate"], attendance["worknumber"])
+    if check_attendance == False:
+        attendance = attendance.to_dict('records')
+        attendance = attendance[-1]
+        db_attendance.insert_user_attendance(db_attendance.Attendance(attendance['id'], attendance['name'], attendance['class_name'], attendance[
+                                             'major'], attendance['faculty'], attendance['date'], attendance['dayofwwek'], attendance['minuteslate'], attendance['reason']))
+        st.success("Điểm danh thành cônh")
+        st.balloons()
+    elif check_attendance == "Bạn đã điểm danh rồi":
+        st.error("Bạn đã điểm danh rồi")
+    elif check_attendance == "Không có lớp hôm nay":
+        st.error("Không có lớp hôm nay")

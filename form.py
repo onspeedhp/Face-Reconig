@@ -1,181 +1,127 @@
 import streamlit as st
 import numpy as np
-import db_user as db_user
-import db_department as db_department
-import db_don_xin as db_don_xin
+import db_user
+import db_attendance
+import db_class
 from PIL import Image
 from process import *
-path = "/home/katherinee/Desktop/Job/Web_Reconig/"
+path = "C:/Users/chauk/OneDrive/Tài liệu/Code/Outsource/Python/Attendence/"
+import datetime as dt
+
+dayofweeks = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
 
 
-def add_new_staff(manage_info):
-    with st.form("add_new_staff"):
+def add_new_user(user_info):
+    with st.form("add_new_student"):
         id = np.random.randint(100000000, 999999999)
-        name = st.text_input("Name", "")
-        department = st.selectbox(
-            "Department", (manage_info["department"], ""))
-        position = st.selectbox("Position", ("Staff", ""))
-        username = "staff"
-        password = "staff"
+        name = st.text_input("Họ và tên", "")
+
+        if user_info["user_role"] == "Giáo viên":
+
+            major = st.selectbox(
+                "Khoa", (user_info["major"], ""))
+            faculty = st.selectbox(
+                "Ngành", (user_info["faculty"], ""))
+            user_role = st.selectbox("Quyền", ("Sinh viên", ""))
+
+            username = ""
+            password = ""
+
+        elif user_info["user_role"] == "Admin":
+            faculty = st.selectbox(
+                "Ngành", db_class.get_unique_faculty())
+            if faculty:
+                major = st.selectbox(
+                    "Khoa", db_class.get_major_by_faculty(faculty))
+
+            user_role = st.selectbox(
+                "Quyền", ("Giáo viên", "Admin"))
+            username = st.text_input("Tên đăng nhập", "")
+
+            password = st.text_input("Mật khẩu", "")
+        
         email = st.text_input("Email", "")
-        phone = st.text_input("Phone number", "")
-        address = st.text_input("Address", "")
-        city = st.text_input("City", "")
+        phone = st.text_input("Số điện thoại", "")
+        address = st.text_input("Địa chỉ", "")
+        city = st.text_input("Thành phố", "")
         col1, col2, col3, col4, col5 = st.columns(5)
 
         with col3:
-            if st.form_submit_button("Summit"):
-                # db_user.insert_user_info(
-                #     id, name, department, position, username, password, email, phone, address, city)
-                TakeImages(
-                    path, id, name, department, position, username, password, email, phone, address, city)
-                # st.balloons()
-                # st.success("Add new staff successfully")
-
-
-def add_new_staff_for_admin():
-    with st.form("add_new_staff"):
-        id = np.random.randint(100000000, 999999999)
-        name = st.text_input("Name", "")
-        department = st.selectbox(
-            "Department", db_department.get_all_unique_department())
-        position = st.selectbox("Position", ("Staff", ""))
-        username = st.text_input("Username", "")
-        password = st.text_input("Password", "")
-        email = st.text_input("Email", "")
-        phone = st.text_input("Phone number", "")
-        address = st.text_input("Address", "")
-        city = st.text_input("City", "")
-        col1, col2, col3, col4, col5 = st.columns(5)
-
-        with col3:
-            if st.form_submit_button("Summit"):
-                # db_user.insert_user_info(
-                #     id, name, department, position, username, password, email, phone, address, city)
-                TakeImages(
-                    path, id, name, department, position, username, password, email, phone, address, city)
+            if st.form_submit_button("Thêm"):
+                user = db_user.User(id, name, major, faculty, user_role,
+                                    username, password, email, phone, address, city)
+                if user.user_role == 'Sinh viên':
+                    TakeImages(path, user)
+                    st.success("Thêm sinh viên thành công")
+                elif user.user_role == 'Giáo viên':
+                    db_user.insert_user_info(user)
+                    st.success("Thêm giáo viên thành công")
+                elif user.user_role == 'Admin':
+                    db_user.insert_user_info(user)
+                    st.success("Thêm Admin thành công")
                 st.balloons()
-                st.success("Add new staff successfully")
 
 
-def add_new_employeer():
-    with st.form("add_new_employeer"):
-        id = np.random.randint(100000000, 999999999)
-        name = st.text_input("Name", "")
-        department = st.selectbox(
-            "Department", db_department.get_all_unique_department())
-        position = st.selectbox("Position", ("Manager", "Admin"))
-        username = st.text_input("Username", "")
-        password = st.text_input("Password", "")
-        email = st.text_input("Email", "")
-        phone = st.text_input("Phone number", "")
-        address = st.text_input("Address", "")
-        city = st.text_input("City", "")
+def change_info_user(user_info):
+    with st.form("change_info_student"):
+        if user_info["user_role"] == "Giáo viên":
+            name_of_students = db_user.get_user_by_major(
+                user_info["major"])
+            select_name = st.sidebar.selectbox("Tên học sinh", name_of_students)
+        elif user_info["user_role"] == "Admin":
+            name_of_users = db_user.get_user_not_euqal_admin()
+            select_name = st.selectbox("Tên người dùng", name_of_users)
+
+        user_info = db_user.get_user_by_name(select_name)
+
+        id = user_info['id']
+        name = st.text_input("Tên", user_info['name'])
+        major = st.selectbox(
+            "Ngành", (user_info["major"], ""))
+        faculty = st.selectbox(
+            "Khoa", (user_info["faculty"], ""))
+        user_role = st.selectbox("Quyền", (user_info["user_role"], ""))
+
+        username = ""
+        password = ""
+        
+        # username = st.text_input("Tên đăng nhập", user_info["username"])
+        # password = st.text_input("Mật khẩu", user_info["password"])
+        email = st.text_input("Email", user_info["email"])
+        phone = st.text_input("Số điện thoại", user_info["phone"])
+        address = st.text_input("Địa chỉ", user_info["address"])
+        city = st.text_input("Thành phố", user_info["city"])
         col1, col2, col3, col4, col5 = st.columns(5)
 
         with col3:
-            if st.form_submit_button("Summit"):
-                # db_user.insert_user_info(
-                #     id, name, department, position, username, password, email, phone, address, city)
-                TakeImages(
-                    path, id, name, department, position, username, password, email, phone, address, city)
+            if st.form_submit_button("Thay đổi"):
+                new_info_student = db_user.User(
+                    id, name, major, faculty, user_role, username, password, email, phone, address, city)
+                db_user.update_user_info(new_info_student)
                 st.balloons()
-                st.success("Add new employeer successfully")
+                st.success("Thay đổi thành công")
 
 
-def change_info_staff(manage_info):
-    user_names = db_user.get_all_unique_name_by_department(
-        manage_info["department"])
-    select_user_name = st.selectbox("Name of Staff", user_names)
-    if select_user_name:
-        user_info = db_user.get_user_by_name(select_user_name)
-        with st.form("change_info_staff"):
-            id = user_info['id']
-            name = st.text_input("Name", user_info['name'])
-            department = st.selectbox(
-                "Department", (user_info["department"], ""))
-            position = st.selectbox("Position", (user_info["position"], ""))
-            username = st.text_input("Username", user_info["username"])
-            password = st.text_input("Password", user_info["password"])
-            email = st.text_input("Email", user_info["email"])
-            phone = st.text_input("Phone number", user_info["phone"])
-            address = st.text_input("Address", user_info["address"])
-            city = st.text_input("City", user_info["city"])
-            col1, col2, col3, col4, col5 = st.columns(5)
+def delete_user(user_info):
+    if user_info["user_role"] == "Giáo viên":
+        name_of_students = db_user.get_user_by_major(
+            user_info["major"])
+        user = st.sidebar.selectbox("Tên sinh viên", name_of_students)
+    elif user_info["user_role"] == "Admin":
+        name_of_students = db_user.get_user_not_euqal_admin()
+        user = st.selectbox("Tên người dùng", name_of_students)
 
-            with col3:
-                if st.form_submit_button("Change"):
-                    db_user.update_user_info(
-                        id, name, department, position, username, password, email, phone, address, city)
-                    st.balloons()
-                    st.success("Update is successfull")
-
-
-def change_info():
-    user_names = db_user.get_all_unique_name()
-    select_user_name = st.sidebar.selectbox("Name of employeers", user_names)
-    if select_user_name:
-        user_info = db_user.get_user_by_name(select_user_name)
-        with st.form("change_info"):
-            id = user_info['id']
-            name = st.text_input("Name", user_info['name'])
-
-            department = st.selectbox(
-                "Department", (user_info["department"], ""))
-            # st.session_state["department"] = user_info["department"]
-            print(department == user_info["department"])
-            position = st.selectbox("Position", (user_info["position"], ""))
-            # st.session_state["positon"] = user_info["positon"]
-
-            username = st.text_input("Username", user_info["username"])
-            password = st.text_input("Password", user_info["password"])
-            email = st.text_input("Email", user_info["email"])
-            phone = st.text_input("Phone number", user_info["phone"])
-            address = st.text_input("Address", user_info["address"])
-            city = st.text_input("City", user_info["city"])
-            col1, col2, col3, col4, col5 = st.columns(5)
-
-            with col3:
-                if st.form_submit_button("Change"):
-                    db_user.update_user_info(
-                        id, name, department, position, username, password, email, phone, address, city)
-                    st.balloons()
-                    st.success("Update is successfull")
-
-
-def detlete_staff(manage_info):
-    user_names = db_user.get_all_unique_name_by_department(
-        manage_info["department"])
-    select_user_name = st.sidebar.selectbox("Name of Staff", user_names)
-    department = st.selectbox("Department", (manage_info["department"], ""))
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col3:
-        if st.button("Detele"):
-            user_info = db_user.get_user_by_name(select_user_name)
+        if st.button("Xóa"):
+            user_info = db_user.get_user_by_name(user)
+            major = st.sidebar.selectbox("Ngành", (user_info["major"], ""))
+            faculty = st.sidebar.selectbox(
+                "Khoa", (user_info["faculty"], ""))
             db_user.delete_user_by_id(user_info['id'])
             st.balloons()
-            st.success("Delete success")
-
-
-def detlete_user():
-    user_names = db_user.get_all_unique_name()
-    select_user_name = st.sidebar.selectbox("Name of Staff", user_names)
-    if select_user_name:
-        user_info = db_user.get_user_by_name(select_user_name)
-        department = st.selectbox("Department", (user_info["department"], ""))
-        position = st.selectbox("Position", (user_info["position"], ""))
-        phone = st.write("Phone number:", user_info["phone"])
-        address = st.write("Address:", user_info["address"])
-        city = st.write("City:", user_info["city"])
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col3:
-        if st.button("Detele"):
-            user_info = db_user.get_user_by_name(select_user_name)
-            db_user.delete_user_by_id(user_info['id'])
-            st.balloons()
-            st.success("Delete success")
+            st.success("Xóa thành công")
 
 
 def account(user_info):
@@ -183,40 +129,103 @@ def account(user_info):
     with st.form("account"):
         col1, col2, col3, col4, col5 = st.columns(5)
         with col3:
-            image = Image.open('ImageIcon/account.png')
+            image = Image.open(path+'ImageIcon/account.png')
             st.image(image)
 
         id = user_info['id']
-        name = st.text_input("Name", user_info['name'])
-        department = st.selectbox(
-            "Department", (user_info["department"], ""))
-
-        position = st.selectbox("Position", (user_info["position"], ""))
-        username = st.text_input("Username", user_info["username"])
-        password = st.text_input("Password", user_info["password"])
+        name = st.text_input("Họ và tên", user_info['name'])
+        major = st.selectbox(
+            "Ngành", (user_info["major"], ""))
+        faculty = st.selectbox(
+            "Khoa", (user_info["faculty"], ""))
+        user_role = st.selectbox("Quyền", (user_info["user_role"], ""))
+        username = st.text_input("Tên đăng nhập", user_info["username"])
+        password = st.text_input("Mật khẩu", user_info["password"])
         email = st.text_input("Email", user_info["email"])
-        phone = st.text_input("Phone number", user_info["phone"])
-        address = st.text_input("Address", user_info["address"])
-        city = st.text_input("City", user_info["city"])
+        phone = st.text_input("Số điện thoại", user_info["phone"])
+        address = st.text_input("Địa chỉ", user_info["address"])
+        city = st.text_input("Thành phố", user_info["city"])
         col1, col2, col3, col4, col5 = st.columns(5)
         with col3:
-            if st.form_submit_button("Change"):
-                db_user.update_user_info(
-                    id, name, department, position, username, password, email, phone, address, city)
-                st.balloons()
-                st.success("Update is successfull")
+            if st.form_submit_button("Thay đổi"):
+                try:
+                    db_user.update_user_info(db_user.User(
+                        id, name, major, faculty, user_role, username, password, email, phone, address, city))
+                    st.balloons()
+                    st.success("Thay đổi thành công")
+                except:
+                    st.error("Thất bại")
 
-def don_nghi(user_info):
-    id = np.random.randint(100000, 999999)
-    with st.form("don_nghi"):
-        name = st.selectbox("Loai don", ("Nghi om", "Nghi viec", "Xin nghi phep", "Xin den muon", "Xin ve som"))
-        ten_nhan_vien = st.text_input("Ten nhan vien", user_info['name'])
-        bo_phan = st.text_input("Bo phan", user_info['department'])
-        vi_tri = st.text_input("Vi tri", user_info['position'])
-        ngay_bat_dau = st.date_input("Ngay nghi")
-        ngay_ket_thuc = st.date_input("Ngay ket thuc")
-        ly_do = st.text_input("Ly do")
+
+def add_new_class(user_info):
+    with st.form("add_new_class"):
+        id = np.random.randint(100000000, 999999999)
+        class_name = st.text_input("Tên lớp", "")
+        major = st.selectbox("Ngành", (user_info["major"], ""))
+        faculty = st.selectbox("Khoa", (user_info["faculty"], ""))
+        time = st.time_input("Thời gian bắt đầu", dt.time(8, 45))
+        time_end = st.time_input("Thời gian kết thúc", dt.time(10, 45))
+        dayofweek = st.selectbox(
+            "Thứ", ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"))
+        students = st.multiselect(
+            "Danh sách học sinh", db_user.get_user_by_major(user_info["major"]))
+        teacher = user_info["id"]
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col3 :
+            if st.form_submit_button("Thêm lớp"):
+                list_id_student = ""
+                # print(students, list_id_student)
+                for student in students:
+                    list_id_student += str(db_user.get_user_by_name(student)["id"]) + ","
+                db_class.insert_new_class(db_class.Class(
+                    id, class_name, major, faculty, time, time_end, dayofweek, list_id_student, teacher))
+                st.balloons()
+                st.success("Thêm lớp thành công")
+
+def change_class_info(user_info):
+    classes = db_class.get_class_by_teacher(user_info["id"])
+    class_name = st.selectbox("Tên lớp", classes)
+    class_info = db_class.get_class_by_class_name(class_name)
+
+    student_id_list = class_info["students"].split(",")
+    student_id_list.pop(-1)
+    student_name_list = []
+    for student_id in student_id_list:
+        student_id = int(student_id)
+        student_name_list.append(db_user.get_user_by_id(student_id)["name"])
+    
+    with st.form("change_class_info"):
+        class_name = st.text_input("Tên lớp", class_info["class_name"])
+        major = st.selectbox("Ngành", (class_info["major"],""))
+        faculty = st.selectbox("Khoa", (class_info["faculty"],""))
+
+        time = st.time_input("Thời gian bắt đầu", dt.datetime.strptime(class_info["time"], '%H:%M:%S'))
+        time_end = st.time_input("Thời gian kết thúc", dt.datetime.strptime(
+            class_info["time_end"], '%H:%M:%S'))
+        dayofweek = st.text_input("Thứ", class_info["dayofweek"])
+        students = st.multiselect(
+            "Danh sách học sinh", db_user.get_user_by_major(user_info["major"]), default=student_name_list)
+        teacher = user_info["id"]
         col1, col2, col3, col4, col5 = st.columns(5)
         with col3:
-            if st.form_submit_button("Gui don"):
-                db_don_xin.insert_don_nghi(id, name, ten_nhan_vien, bo_phan, vi_tri, ngay_bat_dau,ngay_ket_thuc, ly_do)
+            if st.form_submit_button("Thay đổi"):
+                list_id_student = ""
+
+                for student in students:
+                    list_id_student += str(db_user.get_user_by_name(student)
+                                           ["id"]) + ","
+                db_class.update_class_info(db_class.Class(
+                    class_info["id"], class_name, major, faculty, time, time_end, dayofweek, list_id_student, teacher))
+                st.balloons()
+                st.success("Thay đổi thành công")
+
+def delete_class(user_info):
+    classes = db_class.get_class_by_teacher(user_info["id"])
+    class_name = st.selectbox("Tên lớp", classes)
+    class_info = db_class.get_class_by_class_name(class_name)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col3:
+        if st.button("Xóa"):
+            db_class.delete_class_by_id(int(class_info["id"]))
+            st.balloons()
+            st.success("Xóa thành công")
