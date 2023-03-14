@@ -1,3 +1,4 @@
+from db_class import *
 import cv2
 from tkinter import *
 import csv
@@ -13,7 +14,8 @@ import db_user as db_user
 import db_attendance as db_attendance
 import streamlit as st
 import unidecode
-path = "C:/Users/chauk/OneDrive/Tài liệu/Code/Outsource/Python/Attendence/"
+
+path = "C:/Users/chauk/OneDrive/Máy tính/New folder/Web-Reconig/"
 
 
 def TakeImages(path, student):
@@ -48,8 +50,8 @@ def TakeImages(path, student):
 
 
 def TrainImages():
-    # recognizer = cv2.face.LBPHFaceRecognizer_create()#$cv2.createLBPHFaceRecognizer()
-    recognizer = cv2.face_LBPHFaceRecognizer.create()
+    # recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer = cv2.face.LBPHFaceRecognizer.create()
     harcascadePath = "haarcascade_frontalface_default.xml"
     detector = cv2.CascadeClassifier(harcascadePath)
     faces, Id = getImagesAndLabels(f"{path}TrainingImage/")
@@ -80,98 +82,90 @@ def getImagesAndLabels(path):
     return faces, Ids
 
 
-def Attendence(choose_class, choose_dayofweek, choose_time, choose_time_end):
+def Attendence(class_info):
     win = Tk()
     tt = ""
-    minuteslate = 0
-    check_attendance = None
-    reason = ''
-    Id_attendance = np.random.randint(100000000, 999999999)
+
+    student_id_list = class_info["students"].split(",")
+    student_id_list.pop(-1)
+    
+    col_attendence = ["STT", "Mã số sinh viên", "Họ và tên",
+                      "Ngày tháng", "Thời gian", "Trạng thái"]
+
+    df = pd.DataFrame(columns=col_attendence)
+
+    for i in range(len(student_id_list)):
+        print(student_id_list[i])
+        student = db_user.get_user_by_id(int(student_id_list[i]))
+        df.loc[i] = [i+1, student["id"], student["name"], "--/--/--", "--:--:--", "Vắng"]
+
+    # save to csv
+    time = datetime.now().strftime("%d_%m_%Y")
+    df.to_csv(f"{path}Attendance/{class_info['id']}_{time}.csv", index=False)
+
+    student_attendence = []
+
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read(f"{path}TrainingImageLabel/Trainner.yml")
     harcascadePath = "haarcascade_frontalface_default.xml"
     faceCascade = cv2.CascadeClassifier(harcascadePath)
-    df = db_user.get_all_user()
-    # col_names =  ['id', 'name', 'major', 'faculty', 'user_role', 'username', 'password', 'email',
-    #   'phone', 'address', 'city']
-    df = pd.DataFrame(df)
     cam = cv2.VideoCapture(0)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    col_names = ['id', 'name', 'class_name', 'major', 'faculty',
-                 'user_role', 'date', 'dayofwwek', 'minuteslate', "reason"]
-    attendance = pd.DataFrame(columns=col_names)
     while True:
         ret, im = cam.read()
         gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         image = Image.fromarray(gray)
         image = ImageTk.PhotoImage(image, master=win)
 
-        faces = faceCascade.detectMultiScale(gray, 1.2, 5)
+        faces = faceCascade.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
             cv2.rectangle(im, (x, y), (x+w, y+h), (225, 0, 0), 2)
             Id, conf = recognizer.predict(gray[y:y+h, x:x+w])
-            print(Id)
+            student = db_user.get_user_by_id(Id)
             if (conf < 50):
-                user_info = db_user.get_user_by_id(Id)
-                if user_info:
-
-                    tt = user_info["name"] + "-" + user_info["user_role"]
-                    unidecode.unidecode(user_info["user_role"])
-
-                    today = datetime.today()
-                    date = today.strftime('%Y-%m-%d')
-                    hour = today.strftime('%H:%M:%S')
-
-                    minute = int(hour[3:5])
-                    hour = int(hour[0:2])
-
-                    # convert choose_time and choose_time_end to int to compare
-                    choose_time_hour = int(choose_time[0:2])
-                    choose_time_minute = int(choose_time[3:5])
-                    choose_time_end_hour = int(choose_time_end[0:2])
-
-                    check_attendance = db_attendance.check_user_attendance(
-                        date, user_info["name"], choose_class, choose_dayofweek)
-
-                    if check_attendance == False:
-                        if hour == choose_time_hour:
-                            if (minute - choose_time_minute) <= 15:
-                                minuteslate = 0
-                            else:
-                                minuteslate = minute - choose_time_minute
-                        elif hour > choose_time_hour and hour <= choose_time_end_hour:
-                            minuteslate = (choose_time_hour - hour)*60 + minute
-
-                        elif hour > choose_time_end_hour:
-                            minuteslate = 100000
-                            reason = "Muộn"
-
-                        attendance.loc[len(attendance)] = [Id_attendance, user_info["name"], choose_class, user_info["major"],
-                                                           user_info["faculty"], user_info["user_role"], date, choose_dayofweek, minuteslate, reason]
-
+                if student:
+                    print(student["id"])
+                    tt = student["name"] + "_" + str(student["id"])
+                    student_attendence.append(student["id"])
             else:
                 Id = 'Unknown'
                 tt = str(Id)
             if (conf > 75):
-                noOfFile = len(os.listdir("ImagesUnknown"))+1
-                cv2.imwrite(f"{path}ImagesUnknown/Image" +
-                            str(noOfFile) + ".jpg", im[y:y+h, x:x+w])
+                # noOfFile = len(os.listdir("ImagesUnknown"))+1
+                # cv2.imwrite(f"{path}ImagesUnknown/Image" +
+                #             str(noOfFile) + ".jpg", im[y:y+h, x:x+w])
+                tt = str(Id)
             cv2.putText(im, str(tt), (x, y+h), font, 1, (255, 255, 255), 2)
-        attendance = attendance.drop_duplicates(subset=['name'], keep='first')
         cv2.imshow('im', im)
         if (cv2.waitKey(1) == ord('q')):
             break
 
     cam.release()
     cv2.destroyAllWindows()
-    if check_attendance == False:
-        attendance = attendance.to_dict('records')
-        attendance = attendance[-1]
-        db_attendance.insert_user_attendance(db_attendance.Attendance(attendance['id'], attendance['name'], attendance['class_name'], attendance[
-                                             'major'], attendance['faculty'], attendance['date'], attendance['dayofwwek'], attendance['minuteslate'], attendance['reason']))
-        st.success("Điểm danh thành cônh")
-        st.balloons()
-    elif check_attendance == "Bạn đã điểm danh rồi":
-        st.error("Bạn đã điểm danh rồi")
-    elif check_attendance == "Không có lớp hôm nay":
-        st.error("Không có lớp hôm nay")
+
+    student_attendence = list(dict.fromkeys(student_attendence))
+
+    for i in range(len(student_attendence)):
+        df.loc[df["Mã số sinh viên"] == student_attendence[i], 
+               "Trạng thái"] = "Có mặt"
+
+        df.loc[df["Mã số sinh viên"] == student_attendence[i], 
+               "Ngày tháng"] = datetime.now().strftime("%d/%m/%Y")
+        
+        df.loc[df["Mã số sinh viên"] == student_attendence[i], 
+               "Thời gian"] = datetime.now().strftime("%H:%M:%S")
+        
+    # save to csv
+    time = datetime.now().strftime("%d_%m_%Y")
+    df.to_csv(f"{path}Attendance/{class_info['id']}_{time}.csv", index=False)
+    
+# test
+# id = np.random.randint(100000000, 999999999)
+# user = db_user.User(id, "Trung", "Việt Nhật", "Công nghệ thông tin",
+#                               "Học sinh", "4", "1", "", "", "", "")
+
+# TakeImages(path, user)
+
+# class_info = get_class_by_class_name("Quản trị học")
+
+# Attendence(class_info)

@@ -59,6 +59,7 @@ def insert_user_info(User):
                                       database='test')
         cursor = cnx.cursor(buffered=True)
         password = stauth.Hasher(User.password).generate()
+        print(password, type(password))
         query = f"INSERT INTO user_info (id, name, major, faculty, user_role, username, password, email, phone, address, city) VALUES ('{User.id}', '{User.name}', '{User.major}', '{User.faculty}', '{User.user_role}', '{User.username}', '{password[-1]}', '{User.email}', '{User.phone}', '{User.address}', '{User.city}')"
         cursor.execute(query)
         cnx.commit()

@@ -1,3 +1,4 @@
+import datetime as dt
 import streamlit as st
 import numpy as np
 import db_user
@@ -5,8 +6,7 @@ import db_attendance
 import db_class
 from PIL import Image
 from process import *
-path = "C:/Users/chauk/OneDrive/Tài liệu/Code/Outsource/Python/Attendence/"
-import datetime as dt
+path = "C:/Users/chauk/OneDrive/Máy tính/New folder/Web-Reconig/"
 
 dayofweeks = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
 
@@ -24,8 +24,8 @@ def add_new_user(user_info):
                 "Ngành", (user_info["faculty"], ""))
             user_role = st.selectbox("Quyền", ("Sinh viên", ""))
 
-            username = ""
-            password = ""
+            username = "#"
+            password = "#"
 
         elif user_info["user_role"] == "Admin":
             faculty = st.selectbox(
@@ -39,7 +39,7 @@ def add_new_user(user_info):
             username = st.text_input("Tên đăng nhập", "")
 
             password = st.text_input("Mật khẩu", "")
-        
+
         email = st.text_input("Email", "")
         phone = st.text_input("Số điện thoại", "")
         address = st.text_input("Địa chỉ", "")
@@ -67,7 +67,8 @@ def change_info_user(user_info):
         if user_info["user_role"] == "Giáo viên":
             name_of_students = db_user.get_user_by_major(
                 user_info["major"])
-            select_name = st.sidebar.selectbox("Tên học sinh", name_of_students)
+            select_name = st.sidebar.selectbox(
+                "Tên học sinh", name_of_students)
         elif user_info["user_role"] == "Admin":
             name_of_users = db_user.get_user_not_euqal_admin()
             select_name = st.selectbox("Tên người dùng", name_of_users)
@@ -84,7 +85,7 @@ def change_info_user(user_info):
 
         username = ""
         password = ""
-        
+
         # username = st.text_input("Tên đăng nhập", user_info["username"])
         # password = st.text_input("Mật khẩu", user_info["password"])
         email = st.text_input("Email", user_info["email"])
@@ -171,16 +172,18 @@ def add_new_class(user_info):
             "Danh sách học sinh", db_user.get_user_by_major(user_info["major"]))
         teacher = user_info["id"]
         col1, col2, col3, col4, col5 = st.columns(5)
-        with col3 :
+        with col3:
             if st.form_submit_button("Thêm lớp"):
                 list_id_student = ""
                 # print(students, list_id_student)
                 for student in students:
-                    list_id_student += str(db_user.get_user_by_name(student)["id"]) + ","
+                    list_id_student += str(db_user.get_user_by_name(student)
+                                           ["id"]) + ","
                 db_class.insert_new_class(db_class.Class(
                     id, class_name, major, faculty, time, time_end, dayofweek, list_id_student, teacher))
                 st.balloons()
                 st.success("Thêm lớp thành công")
+
 
 def change_class_info(user_info):
     classes = db_class.get_class_by_teacher(user_info["id"])
@@ -193,13 +196,14 @@ def change_class_info(user_info):
     for student_id in student_id_list:
         student_id = int(student_id)
         student_name_list.append(db_user.get_user_by_id(student_id)["name"])
-    
+
     with st.form("change_class_info"):
         class_name = st.text_input("Tên lớp", class_info["class_name"])
-        major = st.selectbox("Ngành", (class_info["major"],""))
-        faculty = st.selectbox("Khoa", (class_info["faculty"],""))
+        major = st.selectbox("Ngành", (class_info["major"], ""))
+        faculty = st.selectbox("Khoa", (class_info["faculty"], ""))
 
-        time = st.time_input("Thời gian bắt đầu", dt.datetime.strptime(class_info["time"], '%H:%M:%S'))
+        time = st.time_input("Thời gian bắt đầu", dt.datetime.strptime(
+            class_info["time"], '%H:%M:%S'))
         time_end = st.time_input("Thời gian kết thúc", dt.datetime.strptime(
             class_info["time_end"], '%H:%M:%S'))
         dayofweek = st.text_input("Thứ", class_info["dayofweek"])
@@ -218,6 +222,7 @@ def change_class_info(user_info):
                     class_info["id"], class_name, major, faculty, time, time_end, dayofweek, list_id_student, teacher))
                 st.balloons()
                 st.success("Thay đổi thành công")
+
 
 def delete_class(user_info):
     classes = db_class.get_class_by_teacher(user_info["id"])

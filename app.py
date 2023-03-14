@@ -5,7 +5,7 @@ import streamlit as st  # pip install streamlit
 import streamlit_authenticator as stauth  # pip install streamlit-authenticator
 from streamlit_option_menu import option_menu
 import numpy as np
-from process import TakeImages, Attendence
+from process import Attendence
 from form import *
 import db_user
 import db_attendance
@@ -18,7 +18,8 @@ st.set_page_config(page_title="Attendance",
 
 # path = "C:/Users/kha/Desktop/Web_Reconig Student/"
 
-path = "C:/Users/chauk/OneDrive/Tài liệu/Code/Outsource/Python/Attendence/"
+path = "C:/Users/chauk/OneDrive/Máy tính/New folder/Web-Reconig/"
+
 users = db_user.get_all_user()
 
 usernames = [user['username'] for user in users]
@@ -68,13 +69,7 @@ elif selected == "Đăng nhập":
             placeholder.empty()
 
             major = user_info['major']
-            @st.cache
-            def load_data():
-                df = db_attendance.get_all_user_attendance()
-                df = pd.DataFrame(df)
-                df = df[df["major"] == major]
-                return df
-
+            @st.cache_data 
             def load_major_from_faculty():
                 print(user_info['major'])
                 df = db_class.get_class_by_major(user_info["major"])
@@ -88,7 +83,7 @@ elif selected == "Đăng nhập":
 
             selected = option_menu(
                 menu_title=None,  # required
-                options=["Quản lý", "Điểm danh", "Tài khoản"],  # required
+                options=["Quản lý", "Điểm danh", "Thống kê", "Tài khoản"],  # required
                 icons=["house", "file-person-fill", "file-person-fill"],  # optional
                 menu_icon="cast",  # optional
                 default_index=0,  # optional
@@ -126,46 +121,58 @@ elif selected == "Đăng nhập":
                             'Kết thúc', all_class_df[(all_class_df["class_name"] == choose_class) & (all_class_df["dayofweek"] == choose_dayofweek)]["time_end"])
                 col1, col2, col3, col4, col5 = st.columns(5)
                 with col3:
+                    class_info = db_class.get_class_by_class_name(choose_class)
                     if st.button("Điểm danh"):
-                        Attendence(choose_class, choose_dayofweek,
-                                   choose_time, choose_time_end)
+                        Attendence(class_info)
 
-            elif selected == "Statistic":
-                df = load_data()
+            elif selected == "Thống kê":
+                choose_class = st.sidebar.selectbox(
+                    'Chọn lớp', all_class_df["class_name"].unique())
 
-                st.sidebar.header("Bộ lọc:")
+                if choose_class:
+                    choose_dayofweek = st.sidebar.selectbox(
+                        'Chọn thời gian', all_class_df[all_class_df["class_name"] == choose_class]["dayofweek"])
 
-                date = st.sidebar.multiselect(
-                    "Thời gian:",
-                    options=df["date"].unique(),
-                    default=df["date"].unique(),
-                )
+                    if choose_dayofweek:
+                        choose_time = st.sidebar.selectbox(
+                            'Bắt đầu', all_class_df[(all_class_df["class_name"] == choose_class) & (all_class_df["dayofweek"] == choose_dayofweek)]["time"])
+                        choose_time_end = st.sidebar.selectbox(
+                            'Kết thúc', all_class_df[(all_class_df["class_name"] == choose_class) & (all_class_df["dayofweek"] == choose_dayofweek)]["time_end"])
+                        
+                    
 
-                class_name = st.sidebar.multiselect(
-                    "Lớp:",
-                    options=df["class_name"].unique(),
-                    default=df["class_name"].unique(),
-                )
+                    class_info = db_class.get_class_by_class_name(choose_class)
+                    
+                    st.sidebar.header("Bộ lọc:")
+                    time = datetime.now().strftime("%d_%m_%Y")
+                    path_csv = f"{path}Attendance/{class_info['id']}_{time}.csv"
+                    df = pd.read_csv(path)
 
-                name_of_student = st.sidebar.multiselect(
-                    "Sinh viên:",
-                    options=df["name"].unique(),
-                    default=df["name"].unique(),
-                )
+                    name = st.sidebar.multiselect(
+                        "Họ và tên:",
+                        options=df["Họ và tên"].unique(),
+                        default=df["Họ và tên"].unique(),
+                    )
 
-                # ---- MAINPAGE ----
-                st.title(":bar_chart: Bảng thống kê")
-                st.markdown("##")
+                    status = st.sidebar.multiselect(
+                        "Trạng thái:",
+                        options=df["Trạng thái"].unique(),
+                        default=df["Trạng thái"].unique(),
+                    )
 
-                df = df[df["date"].isin(date) & df["class_name"].isin(class_name) & df["name"].isin(name_of_student)]
+                    # ---- MAINPAGE ----
+                    st.title(":bar_chart: Bảng thống kê")
+                    st.markdown("##")
 
-                st.table(pd.DataFrame(df))
+                    df = df[df["Họ và tên"].isin(
+                        name) & df["Trạng thái"].isin(status)]
 
+                    st.table(pd.DataFrame(df))
+                    # except:
+                    #     st.write("Không có dữ liệu điểm danh")
 
             elif selected == "Tài khoản":
                 account(user_info)
-
-            
 
             authenticator.logout("Đăng xuất", "sidebar")
 
@@ -173,10 +180,7 @@ elif selected == "Đăng nhập":
             placeholder_menu.empty()
             placeholder.empty()
 
-            @st.cache
-            def load_data():
-                df = db_attendance.get_all_user_attendance()
-                return pd.DataFrame(df)
+            @st.cache_data
 
             def convert_df(df):
                 return df.to_csv().encode("utf-8")
@@ -195,83 +199,21 @@ elif selected == "Đăng nhập":
 
             selected = option_menu(
                 menu_title=None,  # required
-                options=["Quản lý", "Thống kê", "Tài khoản"],  # required
+                options=["Quản lý", "Tài khoản"],  # required
                 icons=["house", "file-person-fill", "house"],  # optional
                 menu_icon="cast",  # optional
                 default_index=0,  # optional
                 orientation="horizontal", key="options_for_admin"
             )
             if selected == "Quản lý":
-                choose = st.sidebar.selectbox("Quản lý", ["Thêm mới", "Thay đổi thông tin", "Xóa"])
-                if choose == "Thêm mới":
+                choose = st.sidebar.selectbox("Quản lý", ["Thêm thành viên mới", "Thay đổi thông tin", "Xóa"])
+                if choose == "Thêm thành viên mới":
                     add_new_user(user_info)
                 elif choose == "Thay đổi thông tin":
                     change_info_user(user_info)
-                elif choose == "Xóa":
+                elif choose == "Xóa thành viên":
                     delete_user(user_info)
             elif selected == "Tài khoản":
                 account(user_info)
-
-            elif selected == "Điểm danh":
-                choose_class = st.sidebar.selectbox(
-                    'Chọn lớp', all_class_df["class_name"].unique())
-
-                if choose_class:
-                    choose_dayofweek = st.sidebar.selectbox(
-                        'Chọn thời gian', all_class_df[all_class_df["class_name"] == choose_class]["dayofweek"])
-
-                    if choose_dayofweek:
-                        choose_time = st.sidebar.selectbox(
-                            'Bắt đầu', all_class_df[(all_class_df["class_name"] == choose_class) & (all_class_df["dayofweek"] == choose_dayofweek)]["time"])
-                        choose_time_end = st.sidebar.selectbox(
-                            'Kết thúc', all_class_df[(all_class_df["class_name"] == choose_class) & (all_class_df["dayofweek"] == choose_dayofweek)]["time_end"])
-                col1, col2, col3, col4, col5 = st.columns(5)
-                with col3:
-                    if st.button("Điểm danh"):
-                        Attendence(choose_class, choose_dayofweek,
-                                   choose_time, choose_time_end)
-
-
-            elif selected == "Thống kê":
-
-                df = load_data()
-
-                st.sidebar.header("Bộ lọc:")
-
-                faculty = st.sidebar.multiselect(
-                    "KHOA:",
-                    options=df["faculty"].unique(),
-                    default=df["faculty"].unique(),
-                )
-
-                major = st.sidebar.multiselect(
-                    "MÔN:",
-                    options=df["major"].unique(),
-                    default=df["major"].unique()
-                )
-
-                date = st.sidebar.multiselect(
-                    "THỜI GIAN:",
-                    options=df["date"].unique(),
-                    default=df["date"].unique(),
-                )
-
-
-                # ---- MAINPAGE ----
-                st.title(":bar_chart: Bảng thống kê điểm danh")
-                st.markdown("##")
-
-                df = df[df["major"].isin(major) & df["faculty"].isin(faculty) & df["date"].isin(date)]
-
-                st.table(pd.DataFrame(df))
-
-                csv = convert_df(df)
-
-                st.download_button(
-                    label="Tải dữ liệu về dạng csv",
-                    data=csv,
-                    file_name="Attendance.csv",
-                    mime="text/csv",
-                )
 
             authenticator.logout("Đăng xuất", "sidebar")
