@@ -2,7 +2,7 @@ import datetime as dt
 import streamlit as st
 import numpy as np
 import db_user
-import db_attendance
+import db_attendence
 import db_class
 from PIL import Image
 from process import *
